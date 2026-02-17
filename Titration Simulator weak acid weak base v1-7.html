@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Acid-Base Titration Simulator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .header h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+            font-weight: 800;
+            letter-spacing: -1px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            font-size: 1.3em;
+            opacity: 0.95;
+            font-weight: 300;
+            position: relative;
+            z-index: 1;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 32px;
+            border-radius: 20px;
+            border: 3px solid #dee2e6;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .control-group label {
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #495057;
+            font-size: 1em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.85em;
+        }
+
+        .control-group input,
+        .control-group select {
+            padding: 14px;
+            border: 3px solid #dee2e6;
+            border-radius: 12px;
+            font-size: 1.05em;
+            transition: all 0.3s ease;
+            background: white;
+            font-weight: 500;
+        }
+
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .indicators-section {
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            padding: 32px;
+            border-radius: 20px;
+            margin-bottom: 40px;
+            border: 3px solid #ffcc80;
+            box-shadow: 0 8px 24px rgba(255, 152, 0, 0.15);
+        }
+
+        .indicators-section h3 {
+            color: #e65100;
+            margin-bottom: 12px;
+            font-size: 1.5em;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .indicators-section p {
+            margin-bottom: 24px;
+            color: #5d4037;
+            font-size: 1em;
+            font-weight: 500;
+        }
+
+        .indicators-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .indicator-button {
+            background: white;
+            border: 3px solid #dee2e6;
+            border-radius: 16px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .indicator-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .indicator-button:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+        }
+
+        .indicator-button:hover::before {
+            opacity: 1;
+        }
+
+        .indicator-button.active {
+            border-color: #667eea;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .indicator-button.active::before {
+            opacity: 1;
+        }
+
+        .indicator-name {
+            font-weight: 800;
+            font-size: 1.05em;
+            margin-bottom: 8px;
+            color: #2d3436;
+            position: relative;
+            z-index: 1;
+        }
+
+        .indicator-range {
+            font-size: 0.9em;
+            color: #636e72;
+            margin-bottom: 12px;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+        }
+
+        .indicator-visual {
+            height: 70px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.15em;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
+            border: 3px solid #2d3436;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .indicator-color-label {
+            font-size: 0.85em;
+            color: #2d3436;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .slider-container {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 32px;
+            border-radius: 20px;
+            margin-bottom: 40px;
+            border: 3px solid #90caf9;
+            box-shadow: 0 8px 24px rgba(33, 150, 243, 0.15);
+        }
+
+        .slider-label {
+            font-weight: 800;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            color: #0d47a1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .slider-value {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 28px;
+            border-radius: 30px;
+            font-size: 1.3em;
+            font-weight: 900;
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            letter-spacing: 1px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 12px;
+            border-radius: 6px;
+            background: linear-gradient(to right, #667eea 0%, #764ba2 100%);
+            outline: none;
+            -webkit-appearance: none;
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            border: 4px solid #667eea;
+            transition: transform 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            border: 4px solid #667eea;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 500px;
+            margin-bottom: 40px;
+            background: white;
+            padding: 24px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            border: 3px solid #e9ecef;
+        }
+
+        .ph-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 32px;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 40px;
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ph-display::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        .ph-display h3 {
+            font-size: 1.4em;
+            margin-bottom: 8px;
+            opacity: 0.95;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .ph-display .ph-value {
+            font-size: 4em;
+            font-weight: 900;
+            text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1;
+            letter-spacing: 2px;
+        }
+
+        .indicator-color-display {
+            margin-top: 16px;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 600;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            display: none;
+            position: relative;
+            z-index: 1;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .indicator-color-display.show {
+            display: block;
+        }
+
+        .feedback-box {
+            background: linear-gradient(135deg, #fff9c4 0%, #fff59d 100%);
+            padding: 32px;
+            border-radius: 20px;
+            margin-bottom: 40px;
+            border-left: 6px solid #fdd835;
+            box-shadow: 0 8px 24px rgba(253, 216, 53, 0.3);
+        }
+
+        .feedback-box h3 {
+            color: #f57f17;
+            margin-bottom: 12px;
+            font-size: 1.4em;
+            font-weight: 800;
+        }
+
+        .feedback-box p {
+            color: #33691e;
+            line-height: 1.8;
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        .assumptions-panel {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 3px solid #dee2e6;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        .assumptions-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 28px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .assumptions-header:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        .assumptions-header h3 {
+            font-size: 1.3em;
+            font-weight: 800;
+        }
+
+        .assumptions-content {
+            padding: 28px;
+            display: none;
+            background: white;
+        }
+
+        .assumptions-content.show {
+            display: block;
+        }
+
+        .assumptions-content ul {
+            list-style-position: inside;
+            line-height: 2;
+            color: #495057;
+        }
+
+        .assumptions-content li {
+            margin-bottom: 14px;
+            padding-left: 12px;
+            font-size: 1.05em;
+        }
+
+        .assumptions-content strong {
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .indicators-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-container {
+                height: 400px;
+            }
+
+            .ph-display .ph-value {
+                font-size: 3em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Acid-Base Titration Simulator</h1>
+            <p>Explore pH changes during titration reactions</p>
+        </div>
+
+        <div class="content">
+            <!-- Controls -->
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label for="titration-type">Titration Type</label>
+                    <select id="titration-type">
+                        <option value="strong-strong">Strong Acid – Strong Base</option>
+                        <option value="weak-strong">Weak Acid – Strong Base</option>
+                        <option value="weakbase-strong">Weak Base – Strong Acid</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="analyte-conc">Analyte Concentration (M)</label>
+                    <input type="number" id="analyte-conc" value="0.10" step="0.01" min="0.01" max="1.0">
+                </div>
+
+                <div class="control-group">
+                    <label for="titrant-conc">Titrant Concentration (M)</label>
+                    <input type="number" id="titrant-conc" value="0.10" step="0.01" min="0.01" max="1.0">
+                </div>
+
+                <div class="control-group">
+                    <label for="initial-volume">Initial Analyte Volume (mL)</label>
+                    <input type="number" id="initial-volume" value="25.0" step="1.0" min="10" max="50">
+                </div>
+
+                <div class="control-group" id="ka-group" style="display: none;">
+                    <label for="ka-value">Ka (acid dissociation constant)</label>
+                    <input type="text" id="ka-value" value="1.8e-5" placeholder="e.g., 1.8e-5">
+                </div>
+
+                <div class="control-group" id="kb-group" style="display: none;">
+                    <label for="kb-value">Kb (base dissociation constant)</label>
+                    <input type="text" id="kb-value" value="1.8e-5" placeholder="e.g., 1.8e-5">
+                </div>
+            </div>
+
+            <!-- pH Indicators Section -->
+            <div class="indicators-section">
+                <h3>pH Indicators (NYS Reference Table M)</h3>
+                <p>Watch the indicator colors change as pH changes! Click to show on graph.</p>
+                <div class="indicators-grid" id="indicators-grid">
+                    <!-- Indicators will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Slider -->
+            <div class="slider-container">
+                <div class="slider-label">
+                    <span>Volume of Titrant Added</span>
+                    <span class="slider-value"><span id="volume-display">0.0</span> mL</span>
+                </div>
+                <input type="range" id="volume-slider" min="0" max="50" step="0.1" value="0">
+            </div>
+
+            <!-- pH Display -->
+            <div class="ph-display">
+                <h3>Current pH</h3>
+                <div class="ph-value" id="ph-value">7.00</div>
+                <div class="indicator-color-display" id="indicator-color-display"></div>
+            </div>
+
+            <!-- Graph -->
+            <div class="chart-container">
+                <canvas id="titration-chart"></canvas>
+            </div>
+
+            <!-- Live Feedback -->
+            <div class="feedback-box">
+                <h3>What's Happening?</h3>
+                <p id="feedback-text">Adjust the slider to begin the titration.</p>
+            </div>
+
+            <!-- Assumptions Panel -->
+            <div class="assumptions-panel">
+                <div class="assumptions-header" onclick="toggleAssumptions()">
+                    <h3>Assumptions & Approximations</h3>
+                    <span id="toggle-icon">▼</span>
+                </div>
+                <div class="assumptions-content" id="assumptions-content">
+                    <ul>
+                        <li><strong>Henderson-Hasselbalch Equation:</strong> Used in buffer regions where both weak acid/base and its conjugate are present. Valid when pH is within ±1 of pKa (or pKb).</li>
+                        <li><strong>Equivalence Point pH ≠ 7:</strong> For weak acid–strong base titrations, the equivalence point pH > 7 due to hydrolysis of the conjugate base. For weak base–strong acid, pH < 7 due to conjugate acid hydrolysis.</li>
+                        <li><strong>Activity vs. Concentration:</strong> We use molar concentrations instead of activities for simplicity at the high school level.</li>
+                        <li><strong>Temperature:</strong> All calculations assume 25°C (298 K) where Kw = 1.0 × 10⁻¹⁴.</li>
+                        <li><strong>Dilution Effects:</strong> Volume changes from mixing are accounted for in all calculations.</li>
+                        <li><strong>Simplifying Assumptions:</strong> We use approximations (like ignoring autoionization of water when [H⁺] or [OH⁻] is sufficiently large) that are standard in introductory chemistry.</li>
+                        <li><strong>pH Indicators:</strong> Indicator transition ranges are approximate. Color changes occur gradually over the pH range shown, not instantly.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===========================================
+        // CONSTANTS (Teachers can modify these)
+        // ===========================================
+        const KW = 1.0e-14;  // Ion product of water at 25°C
+        const MIN_PH = 0;    // Minimum pH for display
+        const MAX_PH = 14;   // Maximum pH for display
+
+        // pH Indicators from NYS Chemistry Reference Table M
+        const INDICATORS = [
+            { name: 'Methyl Orange', pHMin: 3.2, pHMax: 4.4, colorLow: '#ff4444', colorHigh: '#ffaa00', textLow: 'Red', textHigh: 'Yellow' },
+            { name: 'Bromthymol Blue', pHMin: 6.0, pHMax: 7.6, colorLow: '#ffff00', colorHigh: '#0066ff', textLow: 'Yellow', textHigh: 'Blue' },
+            { name: 'Phenolphthalein', pHMin: 8.2, pHMax: 10.0, colorLow: '#ffffff', colorHigh: '#ff00ff', textLow: 'Colorless', textHigh: 'Pink' },
+            { name: 'Litmus', pHMin: 5.0, pHMax: 8.0, colorLow: '#ff0000', colorHigh: '#0000ff', textLow: 'Red', textHigh: 'Blue' },
+            { name: 'Bromcresol Green', pHMin: 3.8, pHMax: 5.4, colorLow: '#ffff00', colorHigh: '#0066ff', textLow: 'Yellow', textHigh: 'Blue' },
+            { name: 'Thymol Blue', pHMin: 8.0, pHMax: 9.6, colorLow: '#ffff00', colorHigh: '#0066ff', textLow: 'Yellow', textHigh: 'Blue' },
+            { name: 'Methyl Red', pHMin: 4.8, pHMax: 6.0, colorLow: '#ff0000', colorHigh: '#ffff00', textLow: 'Red', textHigh: 'Yellow' },
+            { name: 'Alizarin Yellow', pHMin: 10.1, pHMax: 12.0, colorLow: '#ffff00', colorHigh: '#ff8800', textLow: 'Yellow', textHigh: 'Red' }
+        ];
+
+        // ===========================================
+        // GLOBAL VARIABLES
+        // ===========================================
+        let chart;
+        let fullCurveData = [];
+        let equivalenceVolume = 0;
+        let halfEquivalenceVolume = 0;
+        let activeIndicators = new Set();
+
+        // ===========================================
+        // DOM ELEMENTS
+        // ===========================================
+        const titrationType = document.getElementById('titration-type');
+        const analyteConc = document.getElementById('analyte-conc');
+        const titrantConc = document.getElementById('titrant-conc');
+        const initialVolume = document.getElementById('initial-volume');
+        const kaValue = document.getElementById('ka-value');
+        const kbValue = document.getElementById('kb-value');
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumeDisplay = document.getElementById('volume-display');
+        const phValue = document.getElementById('ph-value');
+        const feedbackText = document.getElementById('feedback-text');
+        const indicatorColorDisplay = document.getElementById('indicator-color-display');
+
+        // ===========================================
+        // EVENT LISTENERS
+        // ===========================================
+        titrationType.addEventListener('change', updateKaKbVisibility);
+        titrationType.addEventListener('change', recalculate);
+        analyteConc.addEventListener('input', recalculate);
+        titrantConc.addEventListener('input', recalculate);
+        initialVolume.addEventListener('input', recalculate);
+        kaValue.addEventListener('input', recalculate);
+        kbValue.addEventListener('input', recalculate);
+        volumeSlider.addEventListener('input', updateSliderPosition);
+
+        // ===========================================
+        // UTILITY FUNCTIONS
+        // ===========================================
+        function toggleAssumptions() {
+            const content = document.getElementById('assumptions-content');
+            const icon = document.getElementById('toggle-icon');
+            content.classList.toggle('show');
+            icon.textContent = content.classList.contains('show') ? '▲' : '▼';
+        }
+
+        function updateKaKbVisibility() {
+            const type = titrationType.value;
+            const kaGroup = document.getElementById('ka-group');
+            const kbGroup = document.getElementById('kb-group');
+
+            if (type === 'weak-strong') {
+                kaGroup.style.display = 'flex';
+                kbGroup.style.display = 'none';
+            } else if (type === 'weakbase-strong') {
+                kaGroup.style.display = 'none';
+                kbGroup.style.display = 'flex';
+            } else {
+                kaGroup.style.display = 'none';
+                kbGroup.style.display = 'none';
+            }
+        }
+
+        // ===========================================
+        // COLOR INTERPOLATION FUNCTIONS
+        // ===========================================
+        
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + ((1 << 24) + (Math.round(r) << 16) + (Math.round(g) << 8) + Math.round(b)).toString(16).slice(1);
+        }
+
+        function interpolateColor(color1, color2, fraction) {
+            const c1 = hexToRgb(color1);
+            const c2 = hexToRgb(color2);
+            
+            if (!c1 || !c2) return color1;
+            
+            const r = c1.r + (c2.r - c1.r) * fraction;
+            const g = c1.g + (c2.g - c1.g) * fraction;
+            const b = c1.b + (c2.b - c1.b) * fraction;
+            
+            return rgbToHex(r, g, b);
+        }
+
+        function getTextColor(bgColor) {
+            const rgb = hexToRgb(bgColor);
+            if (!rgb) return '#000000';
+            
+            const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+            return luminance > 0.5 ? '#000000' : '#ffffff';
+        }
+
+        // ===========================================
+        // INDICATOR FUNCTIONS
+        // ===========================================
+        
+        function getIndicatorColor(pH, indicator) {
+            if (pH < indicator.pHMin) {
+                return indicator.colorLow;
+            } else if (pH > indicator.pHMax) {
+                return indicator.colorHigh;
+            } else {
+                const fraction = (pH - indicator.pHMin) / (indicator.pHMax - indicator.pHMin);
+                return interpolateColor(indicator.colorLow, indicator.colorHigh, fraction);
+            }
+        }
+
+        function getIndicatorText(pH, indicator) {
+            if (pH < indicator.pHMin) {
+                return indicator.textLow;
+            } else if (pH > indicator.pHMax) {
+                return indicator.textHigh;
+            } else {
+                return `Transition`;
+            }
+        }
+
+        function createIndicatorButtons() {
+            const grid = document.getElementById('indicators-grid');
+            grid.innerHTML = '';
+
+            INDICATORS.forEach((indicator, index) => {
+                const button = document.createElement('div');
+                button.className = 'indicator-button';
+                button.onclick = () => toggleIndicator(index);
+                button.id = `indicator-${index}`;
+
+                button.innerHTML = `
+                    <div class="indicator-name">${indicator.name}</div>
+                    <div class="indicator-range">pH ${indicator.pHMin} – ${indicator.pHMax}</div>
+                    <div class="indicator-visual" id="indicator-visual-${index}">
+                        <span id="indicator-visual-text-${index}"></span>
+                    </div>
+                    <div class="indicator-color-label" id="indicator-color-label-${index}"></div>
+                `;
+
+                grid.appendChild(button);
+            });
+        }
+
+        function updateIndicatorVisuals(pH) {
+            INDICATORS.forEach((indicator, index) => {
+                const visual = document.getElementById(`indicator-visual-${index}`);
+                const visualText = document.getElementById(`indicator-visual-text-${index}`);
+                const label = document.getElementById(`indicator-color-label-${index}`);
+                
+                const color = getIndicatorColor(pH, indicator);
+                const text = getIndicatorText(pH, indicator);
+                const textColor = getTextColor(color);
+                
+                visual.style.backgroundColor = color;
+                visual.style.color = textColor;
+                visualText.textContent = text;
+                label.textContent = text;
+            });
+        }
+
+        function toggleIndicator(index) {
+            const button = document.getElementById(`indicator-${index}`);
+            
+            if (activeIndicators.has(index)) {
+                activeIndicators.delete(index);
+                button.classList.remove('active');
+            } else {
+                activeIndicators.add(index);
+                button.classList.add('active');
+            }
+
+            updateChart();
+            updateIndicatorColorDisplay();
+        }
+
+        function updateIndicatorColorDisplay() {
+            if (activeIndicators.size === 0) {
+                indicatorColorDisplay.classList.remove('show');
+                return;
+            }
+
+            const currentPH = parseFloat(phValue.textContent);
+            let displayHTML = '';
+
+            activeIndicators.forEach(index => {
+                const indicator = INDICATORS[index];
+                const text = getIndicatorText(currentPH, indicator);
+                
+                displayHTML += `<div style="margin: 5px 0;">
+                    <strong>${indicator.name}:</strong> ${text}
+                </div>`;
+            });
+
+            indicatorColorDisplay.innerHTML = displayHTML;
+            indicatorColorDisplay.classList.add('show');
+        }
+
+        // ===========================================
+        // CHEMISTRY CALCULATIONS
+        // ===========================================
+        
+        function calculateStrongStrong(Ca, Cb, Va, Vb) {
+            const totalVolume = Va + Vb;
+            const molesAcid = Ca * Va / 1000;
+            const molesBase = Cb * Vb / 1000;
+            
+            const excessMoles = molesAcid - molesBase;
+            
+            if (Math.abs(excessMoles) < 1e-10) {
+                return 7.0;
+            } else if (excessMoles > 0) {
+                const concentration = excessMoles / (totalVolume / 1000);
+                return -Math.log10(concentration);
+            } else {
+                const concentration = Math.abs(excessMoles) / (totalVolume / 1000);
+                const pOH = -Math.log10(concentration);
+                return 14 - pOH;
+            }
+        }
+
+        function calculateWeakStrong(Ca, Cb, Va, Vb, Ka) {
+            const totalVolume = Va + Vb;
+            const molesAcid = Ca * Va / 1000;
+            const molesBase = Cb * Vb / 1000;
+            
+            if (Vb === 0) {
+                const H = Math.sqrt(Ka * Ca);
+                return -Math.log10(H);
+            }
+            
+            if (molesBase < molesAcid) {
+                const molesAcidRemaining = molesAcid - molesBase;
+                const molesConjugateBase = molesBase;
+                const pH = -Math.log10(Ka) + Math.log10(molesConjugateBase / molesAcidRemaining);
+                return pH;
+            } else if (Math.abs(molesBase - molesAcid) < 1e-10) {
+                const conjugateBaseConc = molesAcid / (totalVolume / 1000);
+                const Kb = KW / Ka;
+                const OH = Math.sqrt(Kb * conjugateBaseConc);
+                const pOH = -Math.log10(OH);
+                return 14 - pOH;
+            } else {
+                const excessBase = molesBase - molesAcid;
+                const concentration = excessBase / (totalVolume / 1000);
+                const pOH = -Math.log10(concentration);
+                return 14 - pOH;
+            }
+        }
+
+        function calculateWeakBaseStrong(Cb, Ca, Vb, Va, Kb) {
+            const totalVolume = Vb + Va;
+            const molesBase = Cb * Vb / 1000;
+            const molesAcid = Ca * Va / 1000;
+            
+            if (Va === 0) {
+                const OH = Math.sqrt(Kb * Cb);
+                const pOH = -Math.log10(OH);
+                return 14 - pOH;
+            }
+            
+            if (molesAcid < molesBase) {
+                const molesBaseRemaining = molesBase - molesAcid;
+                const molesConjugateAcid = molesAcid;
+                const pOH = -Math.log10(Kb) + Math.log10(molesConjugateAcid / molesBaseRemaining);
+                return 14 - pOH;
+            } else if (Math.abs(molesAcid - molesBase) < 1e-10) {
+                const conjugateAcidConc = molesBase / (totalVolume / 1000);
+                const Ka = KW / Kb;
+                const H = Math.sqrt(Ka * conjugateAcidConc);
+                return -Math.log10(H);
+            } else {
+                const excessAcid = molesAcid - molesBase;
+                const concentration = excessAcid / (totalVolume / 1000);
+                return -Math.log10(concentration);
+            }
+        }
+
+        function calculatePH(volumeTitrant) {
+            const type = titrationType.value;
+            const Ca = parseFloat(analyteConc.value);
+            const Cb = parseFloat(titrantConc.value);
+            const Va = parseFloat(initialVolume.value);
+            const Vb = volumeTitrant;
+
+            let pH;
+
+            if (type === 'strong-strong') {
+                pH = calculateStrongStrong(Ca, Cb, Va, Vb);
+            } else if (type === 'weak-strong') {
+                const Ka = parseFloat(kaValue.value);
+                pH = calculateWeakStrong(Ca, Cb, Va, Vb, Ka);
+            } else if (type === 'weakbase-strong') {
+                const Kb = parseFloat(kbValue.value);
+                pH = calculateWeakBaseStrong(Ca, Cb, Va, Vb, Kb);
+            }
+
+            return Math.max(MIN_PH, Math.min(MAX_PH, pH));
+        }
+
+        function calculateEquivalenceVolume() {
+            const Ca = parseFloat(analyteConc.value);
+            const Cb = parseFloat(titrantConc.value);
+            const Va = parseFloat(initialVolume.value);
+            
+            return (Ca * Va) / Cb;
+        }
+
+        function generateFeedback(volumeTitrant) {
+            const type = titrationType.value;
+            const eqVol = equivalenceVolume;
+            const halfEqVol = halfEquivalenceVolume;
+            
+            const molesAcid = parseFloat(analyteConc.value) * parseFloat(initialVolume.value) / 1000;
+            const molesAdded = parseFloat(titrantConc.value) * volumeTitrant / 1000;
+            
+            const fractionTitrated = molesAdded / molesAcid;
+
+            if (volumeTitrant === 0) {
+                if (type === 'strong-strong') {
+                    return "<strong>Initial pH:</strong> Pure strong acid. High [H⁺] from complete dissociation.";
+                } else if (type === 'weak-strong') {
+                    return "<strong>Initial pH:</strong> Weak acid partially dissociates. Use Ka to find [H⁺].";
+                } else {
+                    return "<strong>Initial pH:</strong> Weak base partially dissociates. Use Kb to find [OH⁻].";
+                }
+            }
+
+            if (type === 'weak-strong' || type === 'weakbase-strong') {
+                if (Math.abs(volumeTitrant - halfEqVol) < 0.5) {
+                    const pKa = type === 'weak-strong' 
+                        ? -Math.log10(parseFloat(kaValue.value))
+                        : 14 + Math.log10(parseFloat(kbValue.value));
+                    return `<strong>Half-Equivalence Point:</strong> pH = pKa = ${pKa.toFixed(2)}. Equal amounts of weak acid/base and conjugate partner create maximum buffering capacity.`;
+                }
+
+                if (fractionTitrated > 0.1 && fractionTitrated < 0.9) {
+                    return "<strong>Buffer Region:</strong> Both weak acid/base and its conjugate are present. Henderson-Hasselbalch equation applies. pH changes slowly.";
+                }
+            }
+
+            if (Math.abs(volumeTitrant - eqVol) < 0.5) {
+                if (type === 'strong-strong') {
+                    return "<strong>Equivalence Point:</strong> Moles acid = moles base. All H⁺ neutralized. pH = 7.00 (neutral).";
+                } else if (type === 'weak-strong') {
+                    return "<strong>Equivalence Point:</strong> All weak acid converted to conjugate base. Base hydrolysis makes pH > 7.";
+                } else {
+                    return "<strong>Equivalence Point:</strong> All weak base converted to conjugate acid. Acid hydrolysis makes pH < 7.";
+                }
+            }
+
+            if (Math.abs(volumeTitrant - eqVol) < 2 && volumeTitrant < eqVol) {
+                return "<strong>Near Equivalence:</strong> Rapid pH change! Almost all analyte has reacted. Small additions cause large pH shifts.";
+            }
+
+            if (volumeTitrant > eqVol) {
+                if (type === 'weakbase-strong') {
+                    return "<strong>Excess Titrant:</strong> Past equivalence point. Excess strong acid controls pH.";
+                } else {
+                    return "<strong>Excess Titrant:</strong> Past equivalence point. Excess strong base controls pH.";
+                }
+            }
+
+            return "<strong>Before Equivalence:</strong> Titrant is neutralizing the analyte. pH depends on amount reacted vs. remaining.";
+        }
+
+        // ===========================================
+        // CHART MANAGEMENT
+        // ===========================================
+        
+        function initializeChart() {
+            const ctx = document.getElementById('titration-chart').getContext('2d');
+            
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Titration Curve',
+                            data: [],
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            borderWidth: 4,
+                            pointRadius: 0,
+                            tension: 0.4,
+                            order: 1
+                        },
+                        {
+                            label: 'Current Position',
+                            data: [],
+                            borderColor: '#e74c3c',
+                            backgroundColor: '#e74c3c',
+                            pointRadius: 10,
+                            pointHoverRadius: 12,
+                            showLine: false,
+                            order: 0
+                        },
+                        {
+                            label: 'Equivalence Point',
+                            data: [],
+                            borderColor: '#27ae60',
+                            backgroundColor: '#27ae60',
+                            pointRadius: 8,
+                            pointStyle: 'triangle',
+                            showLine: false,
+                            order: 0
+                        },
+                        {
+                            label: 'Half-Equivalence',
+                            data: [],
+                            borderColor: '#f39c12',
+                            backgroundColor: '#f39c12',
+                            pointRadius: 8,
+                            pointStyle: 'rect',
+                            showLine: false,
+                            order: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    size: 13,
+                                    weight: 'bold'
+                                },
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: pH ${context.parsed.y.toFixed(2)} at ${context.parsed.x.toFixed(1)} mL`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'Volume of Titrant Added (mL)',
+                                font: {
+                                    size: 15,
+                                    weight: 'bold'
+                                }
+                            },
+                            min: 0,
+                            max: 50,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'pH',
+                                font: {
+                                    size: 15,
+                                    weight: 'bold'
+                                }
+                            },
+                            min: 0,
+                            max: 14,
+                            ticks: {
+                                stepSize: 1
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart() {
+            // Generate full titration curve with smaller steps for better accuracy
+            fullCurveData = [];
+            for (let v = 0; v <= 50; v += 0.2) {
+                const pH = calculatePH(v);
+                fullCurveData.push({ x: v, y: pH });
+            }
+
+            // Current position
+            const currentVolume = parseFloat(volumeSlider.value);
+            const currentPH = calculatePH(currentVolume);
+
+            // Equivalence point
+            equivalenceVolume = calculateEquivalenceVolume();
+            const eqPH = calculatePH(equivalenceVolume);
+
+            // Half-equivalence point
+            const type = titrationType.value;
+            halfEquivalenceVolume = equivalenceVolume / 2;
+            const halfEqPH = (type !== 'strong-strong') ? calculatePH(halfEquivalenceVolume) : null;
+
+            // Update base datasets
+            chart.data.datasets[0].data = fullCurveData;
+            chart.data.datasets[1].data = [{ x: currentVolume, y: currentPH }];
+            chart.data.datasets[2].data = [{ x: equivalenceVolume, y: eqPH }];
+            chart.data.datasets[3].data = (halfEqPH !== null) ? [{ x: halfEquivalenceVolume, y: halfEqPH }] : [];
+
+            // Remove old indicator datasets
+            while (chart.data.datasets.length > 4) {
+                chart.data.datasets.pop();
+            }
+
+            // Add indicator range shading - IMPROVED LOGIC WITH TOLERANCE
+            activeIndicators.forEach(index => {
+                const indicator = INDICATORS[index];
+                
+                // Create array to hold all points where curve intersects indicator range
+                let indicatorPoints = [];
+                
+                // Check every point on the curve
+                for (let i = 0; i < fullCurveData.length; i++) {
+                    const point = fullCurveData[i];
+                    
+                    // Add tolerance to catch edge cases - if pH is ANYWHERE near the indicator range
+                    const tolerance = 0.1;
+                    if (point.y >= (indicator.pHMin - tolerance) && point.y <= (indicator.pHMax + tolerance)) {
+                        indicatorPoints.push({ x: point.x, y: point.y });
+                    }
+                }
+                
+                // If we found any points in the indicator range, add them as a dataset
+                if (indicatorPoints.length > 0) {
+                    chart.data.datasets.push({
+                        label: `${indicator.name} Range`,
+                        data: indicatorPoints,
+                        borderColor: indicator.colorHigh,
+                        backgroundColor: indicator.colorHigh + '50',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        showLine: true,
+                        fill: true,
+                        order: 2
+                    });
+                }
+            });
+
+            chart.update('none');
+        }
+
+        // ===========================================
+        // UPDATE FUNCTIONS
+        // ===========================================
+        
+        function updateSliderPosition() {
+            const volume = parseFloat(volumeSlider.value);
+            volumeDisplay.textContent = volume.toFixed(1);
+
+            const pH = calculatePH(volume);
+            phValue.textContent = pH.toFixed(2);
+
+            // Update current position on chart
+            chart.data.datasets[1].data = [{ x: volume, y: pH }];
+            chart.update('none');
+
+            // Update feedback
+            feedbackText.innerHTML = generateFeedback(volume);
+
+            // Update indicator color display
+            updateIndicatorColorDisplay();
+            
+            // Update all indicator visuals
+            updateIndicatorVisuals(pH);
+        }
+
+        function recalculate() {
+            updateChart();
+            updateSliderPosition();
+        }
+
+        // ===========================================
+        // INITIALIZATION
+        // ===========================================
+        
+        window.addEventListener('load', () => {
+            updateKaKbVisibility();
+            createIndicatorButtons();
+            initializeChart();
+            recalculate();
+        });
+    </script>
+</body>
+</html>
